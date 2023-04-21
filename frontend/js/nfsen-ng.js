@@ -12,8 +12,9 @@ var config,
     api_graph_options,
     api_flows_options,
     api_statistics_options,
-    nfdump_translation = {ff: 'flow record flags in hex', ts: 'Start Time - first seen', te: 'End Time - last seen', tr: 'Time the flow was received by the collector', td: 'Duration', pr: 'Protocol', exp: 'Exporter ID', eng: 'Engine Type/ID', sa: 'Source Address', da: 'Destination Address', sap: 'Source Address:Port', dap: 'Destination Address:Port', sp: 'Source Port', dp: 'Destination Port', sn: 'Source Network (mask applied)', dn: 'Destination Network (mask applied)', nh: 'Next-hop IP Address', nhb: 'BGP Next-hop IP Address', ra: 'Router IP Address', sas: 'Source AS', das: 'Destination AS', nas: 'Next AS', pas: 'Previous AS', in: 'Input Interface num', out: 'Output Interface num', pkt: 'Packets - default input', ipkt: 'Input Packets', opkt: 'Output Packets', byt: 'Bytes - default input', ibyt: 'Input Bytes', obyt: 'Output Bytes', fl: 'Flows', flg: 'TCP Flags', tos: 'Tos - default src', stos: 'Src Tos', dtos: 'Dst Tos', dir: 'Direction: ingress, egress', smk: 'Src mask', dmk: 'Dst mask', fwd: 'Forwarding Status', svln: 'Src vlan label', dvln: 'Dst vlan label', ismc: 'Input Src Mac Addr', odmc: 'Output Dst Mac Addr', idmc: 'Input Dst Mac Addr', osmc: 'Output Src Mac Addr', pps: 'Packets per second', bps: 'Bytes per second', bpp: 'Bytes per packet', flP: 'Flows (%)', ipktP: 'Input Packets (%)', opktP: 'Output Packets (%)', ibytP: 'Input Bytes (%)', obytP: 'Output Bytes (%)', ipps: 'Input Packets/s', ibps: 'Input Bytes/s', ibpp: 'Input Bytes/Packet', pktP: 'Packets (%)', bytP: 'Bytes (%)'},
     views_view_status = {graphs: false, flows: false, statistics: false};
+    const nfdump_ignore_fields = ["type", "sampled", "export_sysid", "last", "tcp_flags", "src_tos", "received", "connect_id", "event_id", "event", "xevent_id", "t_event", "nat_event_id", "nat_event", "ingress_vrf", "egress_vrf", "label"];
+    const protocols = {'1': 'ICMP', '6': 'TCP', '17': 'UDP'}
 
 $(document).ready(function() {
 
@@ -296,15 +297,15 @@ $(document).ready(function() {
     $(document).on('click', '#filterCommands .submit', function() {
         var current_view = $(this).attr('data-view'),
             do_continue = true,
-            date_diff = date_range.options.to-date_range.options.from,
+            //date_diff = date_range.options.to-date_range.options.from,
             count_sources = $('#filterSourcesSelect').val().length;
 
         // warn user of long-running query
-        if (date_diff*count_sources > 1000*24*60*60*12) {
+        /*if (date_diff*count_sources > 1000*24*60*60*12) {
             var count_days = parseInt(date_diff/1000/24/60/60),
                 calc_info = count_days + ' days and ' + count_sources + ' sources';
             do_continue = confirm('Be aware that nfdump will scan 288 capture files per day and source. You selected ' + calc_info + '. This might take a long time and lots of server resources. Are you sure you want to submit this query?');
-        }
+        }*/
 
         if (do_continue === false) return false;
         if (current_view === 'statistics') submit_statistics();
@@ -322,10 +323,10 @@ $(document).ready(function() {
     /**
      * Get a CSV of the currently selected data
      */
-    $(document).on('click', '#filterCommands .csv', function() {
+    /*$(document).on('click', '#filterCommands .csv', function() {
         $('#filterCommands .submit:visible').trigger('click');
         window.open(api_last_query + '&csv', '_blank');
-    });
+    });*/
 
     /**
      * Reset flows/statistics form
@@ -375,7 +376,6 @@ $(document).ready(function() {
         if (typeof config.frontend.defaults !== 'undefined') {
             defaults = config.frontend.defaults;
         }
-
         // graphs defaults
         if (view === 'graphs' && views_view_status.graphs === false) {
             // graphs: set default display (sources, protocols, ports)
@@ -796,6 +796,8 @@ $(document).ready(function() {
         var sources = $('#filterSourcesSelect').val(),
             datestart = parseInt(dygraph_daterange[0].getTime()/1000),
             dateend = parseInt(dygraph_daterange[1].getTime()/1000),
+            //datestart = Math.floor(new Date(document.getElementById("date_range").value).getTime() / 1000),
+            //dateend = Math.floor(new Date(document.getElementById("date_range_end").value).getTime() / 1000),
             filter = '' + $('#filterNfdumpTextarea').val(),
             limit = $('#flowsFilterLimitSelection').val(),
             sort = '',
@@ -804,7 +806,6 @@ $(document).ready(function() {
                 custom: $('#customListOutputFormatValue').val(),
                 ipv6: $('#flowsFilterOther input[name="ipv6"]').prop('checked') | 0
             };
-
         // parse form values to generate a proper API request
         var aggregate = parse_aggregation_fields();
 
@@ -912,63 +913,57 @@ $(document).ready(function() {
      * @returns boolean
      */
     function render_table(data, status) {
+        
         if (status === 'success') {
             footable_data = data;
-
             // print nfdump command
-            if (typeof data[0] === 'string') {
-                display_message('success', 'nfdump command: ' + data[0].toString())
+            if (typeof data['nfdump_command'] === 'string') {
+                display_message('success', 'nfdump command: ' + data['nfdump_command'].toString())
             }
 
             // return if invalid data got returned
-            if (typeof data[1] !== 'object') {
-                display_message('warning', 'something went wrong. ' + data[1].toString());
+            if (typeof data['nfdump_output'] !== 'object') {
+                display_message('warning', 'something went wrong. ' + data.toString());
                 return false;
             }
 
             // generate table header
-            var tempcolumns = data[1],
+            var tempcolumns = Object.keys(data['nfdump_output'][0]),
                 columns = [];
-
             $.each(tempcolumns, function (i, val) {
-                // todo optimize breakpoints
-                var title = (val === 'val') ? api_statistics_options.title : nfdump_translation[val],
-                    column = {
+                if (! nfdump_ignore_fields.includes(val)) {
+                    columns.push(
+                    {
                         name: val,
-                        title: title,
-                        type: 'number',
+                        title: val,
+                        type: 'text',
                         breakpoints: 'xs sm',
-                    };
-                if (['ts', 'te', 'tr'].indexOf(val) !== -1) {
-                    column['breakpoints'] = '';
-                    column['type'] = 'text'; // 'date' needs moment.js library...
-                } else if (['sp', 'dp', 'td', 'fl', 'flP', 'ipktP', 'opktP', 'ibytP', 'obytP', 'ipps', 'opps', 'ibps', 'obps', 'ibpp', 'obpp', 'pktP', 'bytP'].indexOf(val) !== -1) {
-                    column['type'] = 'number';
-                    column['thousandSeparator'] = '\'';
-                } else if (['sa', 'da', 'pr', 'val'].indexOf(val) !== -1) {
-                    column['breakpoints'] = '';
-                    column['type'] = 'text';
-                } else if (['dtos', 'stos', 'tos', 'ipkt', 'opkt', 'ibyt', 'obyt', 'fl'].indexOf(val) !== -1) {
-                    column['breakpoints'] = 'xs sm md';
-                } else if (['flg', 'fwd', 'in', 'out', 'sas', 'das'].indexOf(val) !== -1) {
-                    column['breakpoints'] = 'all';
-                    column['type'] = 'text';
-                } else {
-                    column['breakpoints'] = '';
-                    column['type'] = 'text';
+                    })
                 }
-                columns.push(column);
             });
-
             // generate table data
-            var temprows = data.slice(2),
+            var temprows = Object.values(data['nfdump_output']),
                 rows = [];
-
             $.each(temprows, function (i, val) {
                 var row = {id: i};
 
                 $.each(val, function (j, col) {
-                    row[tempcolumns[j]] = col;
+
+                    if (! nfdump_ignore_fields.includes(j)) {
+                       
+                        // fix for protocol being integer in JSON output
+                        if (j == 'proto') {
+                       
+                            if ( Object.keys(protocols).includes(col.toString())) {
+                                row[j] = protocols[col];
+                            } 
+                       
+                        } else {
+                            row[j] = col;
+                        }
+                        
+                    }
+                    
                 });
 
                 rows.push(row);
@@ -986,6 +981,7 @@ $(document).ready(function() {
             $('#error').find('div.alert:not(.alert-success)').fadeOut(1500, function () {
                 $(this).remove();
             });
+
         }
 
         // reset button label

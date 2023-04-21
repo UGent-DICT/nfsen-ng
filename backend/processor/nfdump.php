@@ -35,6 +35,7 @@ class NfDump implements Processor {
      * @param $value
      */
     public function setOption($option, $value) {
+	
         switch ($option) {
             case '-M': // set sources
 
@@ -61,11 +62,12 @@ class NfDump implements Processor {
                 break;
             case '-o': // set output format
                 $this->cfg['format'] = $value;
+                $this->cfg['option']['-o'] = 'json';
                 break;
             default:
                 $this->cfg['option'][$option] = $value;
-                $this->cfg['option']['-o'] = 'csv'; // always get parsable data todo user-selectable? calculations bps/bpp/pps not in csv
-                break;
+                $this->cfg['option']['-o'] = 'json'; // always get parsable data todo user-selectable? calculations bps/bpp/pps not in csv
+		break;
         }
     }
 
@@ -115,58 +117,14 @@ class NfDump implements Processor {
                 throw new \Exception("NfDump: Internal error. " . implode(' ', $output));
                 break;
         }
+        
+        $jsonstring = implode('', $output);
+        $nfdump_output = json_decode( $jsonstring, true ) ;
+        $data = array();
+        $data['nfdump_command'] = $command;
+        $data['nfdump_output'] = $nfdump_output;
 
-        // add command to output
-        array_unshift($output, $command);
-
-        // if last element contains a colon, it's not a csv - todo better check?
-        if (preg_match('/:/', $output[count($output) - 1])) {
-            return $output; // return output if it is a flows/packets/bytes dump
-        }
-
-        // remove the 3 summary lines at the end of the csv output
-        $output = array_slice($output, 0, -3);
-
-        // slice csv (only return the fields actually wanted)
-        $field_ids_active = [];
-        $parsed_header = false;
-        $format = false;
-        if (isset($this->cfg['format']))
-            $format = $this->get_output_format($this->cfg['format']);
-
-        foreach ($output as $i => &$line) {
-
-            if ($i === 0) continue; // skip nfdump command
-            $line = str_getcsv($line, ',');
-            $temp_line = [];
-
-            if (count($line) === 1 || preg_match('/limit/', $line[0]) || preg_match('/error/', $line[0])) { // probably an error message or warning. add to command
-                $output[0] .= ' <br><b>' . $line[0] . '</b>';
-                unset($output[$i]);
-                continue;
-            }
-            if (!is_array($format)) $format = $line; // set first valid line as header if not already defined
-
-            foreach ($line as $field_id => $field) {
-
-                // heading has the field identifiers. fill $fields_active with all active fields
-                if ($parsed_header === false) {
-                    if (in_array($field, $format)) {
-                        $field_ids_active[array_search($field, $format)] = $field_id;
-                    }
-                }
-
-                // remove field if not in $fields_active
-                if (in_array($field_id, $field_ids_active)) {
-                    $temp_line[array_search($field_id, $field_ids_active, true)] = $field;
-                }
-            }
-
-            $parsed_header = true;
-            ksort($temp_line);
-            $line = array_values($temp_line);
-        }
-        return array_values($output);
+        return $data;
     }
 
     /**

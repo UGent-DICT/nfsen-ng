@@ -64,9 +64,11 @@ class NfDump implements Processor {
                 $this->cfg['format'] = $value;
                 $this->cfg['option']['-o'] = 'json';
                 break;
+            case '-s':
+              $this->cfg['option']['-o'] = 'csv';
             default:
                 $this->cfg['option'][$option] = $value;
-                $this->cfg['option']['-o'] = 'json'; // always get parsable data todo user-selectable? calculations bps/bpp/pps not in csv
+                //$this->cfg['option']['-o'] = 'json'; // always get parsable data todo user-selectable? calculations bps/bpp/pps not in csv
 		break;
         }
     }
@@ -118,9 +120,51 @@ class NfDump implements Processor {
                 break;
         }
         
-        $jsonstring = implode('', $output);
-        $nfdump_output = json_decode( $jsonstring, true ) ;
         $data = array();
+                
+        function csv_to_json ($csv) {
+          $csv = array_slice($csv, 0, -3);
+          $json = array();
+          
+          foreach ( $csv as $line ) {
+            $entry = array();   
+            $i=0;
+            $values=explode(',', $line);
+            //print_r($values);
+            if (count($values) > 1) {
+                foreach ( explode(',', $csv[0]) as $key ) {;
+                  $entry[$key] = $values[$i];
+                  $i+=1;        
+                }
+            }
+            array_push($json, $entry);
+
+          }
+          unset($json[0]);
+          return(array_values($json));
+
+        }
+
+        function is_json($output) {
+
+          try {
+
+            $jsonstring = implode('', $output);
+            $json = json_decode( $jsonstring, true ) ;
+            return $json;
+          }
+          catch (Exception $e) {
+            //echo "not json";
+            return 0;
+          }
+        }
+        $res = is_json($output); 
+        if ( $res != 0) {
+          $nfdump_output = $res;
+        } else {
+          $nfdump_output=csv_to_json($output);
+        }
+
         $data['nfdump_command'] = $command;
         $data['nfdump_output'] = $nfdump_output;
 

@@ -13,7 +13,7 @@ var config,
     api_flows_options,
     api_statistics_options,
     views_view_status = {graphs: false, flows: false, statistics: false};
-    const nfdump_ignore_fields = ["type", "sampled", "export_sysid", "last", "tcp_flags", "src_tos", "received", "connect_id", "event_id", "event", "xevent_id", "t_event", "nat_event_id", "nat_event", "ingress_vrf", "egress_vrf", "label"];
+    const nfdump_ignore_fields = ["type", "sampled", "export_sysid", "first", "last", "tcp_flags", "src_tos", "connect_id", "event_id", "event", "xevent_id", "t_event", "nat_event_id", "nat_event", "ingress_vrf", "egress_vrf", "label"];
     const protocols = {'1': 'ICMP', '6': 'TCP', '17': 'UDP'}
 
 $(document).ready(function() {

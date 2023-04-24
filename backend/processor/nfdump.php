@@ -121,6 +121,11 @@ class NfDump implements Processor {
         }
         
         $data = array();
+
+        // just return output for listen.php
+        if (array_key_exists('-I', $this->cfg['option'])) {
+          return $data;
+        }
                 
         function csv_to_json ($csv) {
           $csv = array_slice($csv, 0, -3);

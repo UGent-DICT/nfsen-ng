@@ -13,7 +13,7 @@ var config,
     api_flows_options,
     api_statistics_options,
     views_view_status = {graphs: false, flows: false, statistics: false};
-    const nfdump_ignore_fields = ["type", "sampled", "export_sysid", "first", "last", "tcp_flags", "src_tos", "connect_id", "event_id", "event", "xevent_id", "t_event", "nat_event_id", "nat_event", "ingress_vrf", "egress_vrf", "label"];
+    const nfdump_ignore_fields = ["type", "sampled", "export_sysid", "tcp_flags", "src_tos", "connect_id", "event_id", "event", "xevent_id", "received", "nat_event_id", "ingress_vrf", "egress_vrf", "label"];
     const protocols = {'1': 'ICMP', '6': 'TCP', '17': 'UDP'}
 
 $(document).ready(function() {
@@ -445,7 +445,8 @@ $(document).ready(function() {
         // set default date range
         var to = new Date();
         var from = new Date();
-        from.setFullYear(to.getFullYear()-3);
+        //from.setFullYear(to.getFullYear()-0.4);
+        from.setMonth(to.getMonth() - 4);
         dygraph_daterange = [from, to];
 
         // initialize date range slider

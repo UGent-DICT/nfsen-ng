@@ -92,7 +92,7 @@ class NfDump implements Processor {
         $processes = [];
         $return = "";
         $filter = (empty($this->cfg['filter'])) ? "" : " " . escapeshellarg($this->cfg['filter']);
-        $command = $this->cfg['env']['bin'] . " " . $this->flatten($this->cfg['option']) . $filter . ' 2>&1';
+        $command = $this->cfg['env']['bin'] . " " . $this->flatten($this->cfg['option']) . $filter . ' 2>/dev/null';
         $this->d->log('Trying to execute ' . $command, LOG_DEBUG);
 
         // check for already running nfdump processes
@@ -124,7 +124,7 @@ class NfDump implements Processor {
 
         // just return output for listen.php
         if (array_key_exists('-I', $this->cfg['option'])) {
-          return $data;
+          return $output;
         }
                 
         function csv_to_json ($csv) {
@@ -143,7 +143,7 @@ class NfDump implements Processor {
                 }
             }
             array_push($json, $entry);
-
+            
           }
           unset($json[0]);
           return(array_values($json));
@@ -273,13 +273,13 @@ class NfDump implements Processor {
             // nfdump format: %ts %td %pr %sap %dap %pkt %byt %fl
             // csv output: ts,te,td,sa,da,sp,dp,pr,flg,fwd,stos,ipkt,ibyt,opkt,obyt,in,out,sas,das,smk,dmk,dtos,dir,nh,nhb,svln,dvln,ismc,odmc,idmc,osmc,mpls1,mpls2,mpls3,mpls4,mpls5,mpls6,mpls7,mpls8,mpls9,mpls10,cl,sl,al,ra,eng,exid,tr
             case 'line':
-                return ['ts', 'td', 'pr', 'sa', 'sp', 'da', 'dp', 'ipkt', 'ibyt', 'fl'];
+                return ['ts', 'tr', 'td', 'pr', 'sa', 'sp', 'da', 'dp', 'ipkt', 'ibyt', 'fl'];
                 // nfdump format: %ts %td %pr %sap %dap %flg %tos %pkt %byt %fl
             case 'long':
-                return ['ts', 'td', 'pr', 'sa', 'sp', 'da', 'dp', 'flg', 'stos', 'dtos', 'ipkt', 'ibyt', 'fl'];
+                return ['ts', 'tr', 'td', 'pr', 'sa', 'sp', 'da', 'dp', 'flg', 'stos', 'dtos', 'ipkt', 'ibyt', 'fl'];
                 // nfdump format: %ts %td %pr %sap %dap %pkt %byt %pps %bps %bpp %fl
             case 'extended':
-                return ['ts', 'td', 'pr', 'sa', 'sp', 'da', 'dp', 'ipkt', 'ibyt', 'ibps', 'ipps', 'ibpp'];
+                return ['ts', 'tr', 'td', 'pr', 'sa', 'sp', 'da', 'dp', 'ipkt', 'ibyt', 'ibps', 'ipps', 'ibpp'];
             case 'full':
                 return ['ts', 'te', 'td', 'sa', 'da', 'sp', 'dp', 'pr', 'flg', 'fwd', 'stos', 'ipkt', 'ibyt', 'opkt', 'obyt', 'in', 'out', 'sas', 'das', 'smk', 'dmk', 'dtos', 'dir', 'nh', 'nhb', 'svln', 'dvln', 'ismc', 'odmc', 'idmc', 'osmc', 'mpls1', 'mpls2', 'mpls3', 'mpls4', 'mpls5', 'mpls6', 'mpls7', 'mpls8', 'mpls9', 'mpls10', 'cl', 'sl', 'al', 'ra', 'eng', 'exid', 'tr'];
 
